@@ -831,6 +831,8 @@ class KeymapHelper:
             pass
         
         # Try to detect keys using key code (fallback for Linux)
+        # Only use vk codes as fallback if the key wasn't already identified
+        # Note: vk 108 is used for both 'l' key and ALT_R, so we need to check if it's actually ALT_R
         try:
             if hasattr(key, 'vk'):
                 vk = key.vk
@@ -839,11 +841,23 @@ class KeymapHelper:
                     if not self.super_pressed:
                         self.super_pressed = True
                         GLib.idle_add(self.show_popup)
-                # On Linux/X11, ALT usually has code 64 (left), 108 (right/AltGr), or 65511 (Alt_L)
-                elif vk == 64 or vk == 108 or vk == 65511:
+                # On Linux/X11, ALT usually has code 64 (left) or 65511 (Alt_L)
+                # Note: vk 108 is used for both ALT_R and 'l' key, so we only use it if key is Key.alt_r
+                elif vk == 64 or vk == 65511:
                     if not self.alt_pressed:
                         self.alt_pressed = True
                         GLib.idle_add(self.show_popup)
+                elif vk == 108:
+                    # vk 108 can be either ALT_R or 'l' key
+                    # Only treat as ALT if it's actually Key.alt_r
+                    try:
+                        if key == keyboard.Key.alt_r:
+                            if not self.alt_pressed:
+                                self.alt_pressed = True
+                                GLib.idle_add(self.show_popup)
+                    except:
+                        # If we can't compare, assume it's not ALT
+                        pass
         except Exception:
             pass
     

@@ -89,6 +89,73 @@ If running in background, you can stop it with:
 pkill -f shortcut_helper.py
 ```
 
+## Install as System Service (Auto-start on Login)
+
+To have ShortcutHelper start automatically when you log in to Ubuntu, you can install it as a systemd user service:
+
+### Installation
+
+```bash
+chmod +x install-service.sh
+./install-service.sh
+```
+
+This script will:
+1. Detect your current X11 display automatically
+2. Create a systemd service file
+3. Install it to `~/.config/systemd/user/shortcut-helper.service`
+4. Enable the service to start automatically on login
+5. Start the service immediately
+
+The service will automatically restart if it crashes, and will start automatically every time you log in.
+
+### Service Management
+
+Once installed, you can manage the service with systemctl:
+
+```bash
+# Check service status
+systemctl --user status shortcut-helper.service
+
+# View logs in real-time
+journalctl --user -u shortcut-helper.service -f
+
+# View last 50 log entries
+journalctl --user -u shortcut-helper.service -n 50
+
+# Restart the service
+systemctl --user restart shortcut-helper.service
+
+# Stop the service
+systemctl --user stop shortcut-helper.service
+
+# Start the service
+systemctl --user start shortcut-helper.service
+
+# Disable auto-start (but keep service installed)
+systemctl --user disable shortcut-helper.service
+
+# Re-enable auto-start
+systemctl --user enable shortcut-helper.service
+```
+
+### Uninstallation
+
+To remove the systemd service:
+
+```bash
+chmod +x uninstall-service.sh
+./uninstall-service.sh
+```
+
+This will:
+1. Stop the service if it's running
+2. Disable auto-start
+3. Remove the service file
+4. Reload systemd daemon
+
+**Note:** After uninstalling, you can still run ShortcutHelper manually using `./run.sh`.
+
 ## Troubleshooting
 
 ### Error: "externally-managed-environment"

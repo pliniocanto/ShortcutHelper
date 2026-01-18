@@ -33,6 +33,8 @@ For more details, see the `SETUP.md` file.
 
 ## Usage
 
+### Running Manually
+
 After installation, run the program with:
 
 ```bash
@@ -47,6 +49,43 @@ python shortcut_helper.py
 ```
 
 The program will run in the background and show the popup whenever you press CTRL, Super, or ALT.
+
+### Running as a System Service (Auto-start on Login)
+
+To install ShortcutHelper as a systemd user service that starts automatically when you log in:
+
+```bash
+./install-service.sh
+```
+
+This will:
+- Create a systemd service file
+- Install it to `~/.config/systemd/user/`
+- Enable it to start automatically on login
+- Start the service immediately
+
+**Useful service commands:**
+```bash
+# Check service status
+systemctl --user status shortcut-helper.service
+
+# View logs
+journalctl --user -u shortcut-helper.service -f
+
+# Restart the service
+systemctl --user restart shortcut-helper.service
+
+# Stop the service
+systemctl --user stop shortcut-helper.service
+
+# Start the service
+systemctl --user start shortcut-helper.service
+```
+
+**To uninstall the service:**
+```bash
+./uninstall-service.sh
+```
 
 ## Configuration
 
@@ -73,6 +112,8 @@ python shortcut_helper.py --no-import-system
 - `requirements.txt` - Python dependencies
 - `setup.sh` - Automatic installation script
 - `run.sh` - Script to run the program
+- `install-service.sh` - Install as systemd service (auto-start)
+- `uninstall-service.sh` - Uninstall systemd service
 - `README.md` - This file
 - `SETUP.md` - Detailed installation instructions
 - `CUSTOMIZATION.md` - Customization guide

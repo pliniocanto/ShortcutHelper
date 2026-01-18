@@ -59,10 +59,6 @@ class KeymapPopup:
         # Set minimum width (doubled)
         self.window.set_size_request(600, -1)  # Minimum width of 600px (doubled)
         
-        # Configure opacity via CSS (set_opacity is deprecated)
-        opacity = self.settings.get('opacity', 0.95)
-        # Opacity will be applied via CSS below
-        
         # Create main container
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         vbox.set_border_width(15)
@@ -84,7 +80,7 @@ class KeymapPopup:
         # Lista de atalhos
         self.scrolled = Gtk.ScrolledWindow()
         self.scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
-        self.scrolled.set_min_content_height(300)
+        self.scrolled.set_min_content_height(200)
         self.scrolled.set_max_content_height(500)
         
         self.shortcuts_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -97,22 +93,34 @@ class KeymapPopup:
         
         self.window.add(vbox)
         
-        # Estilizar com CSS
+        # Style with CSS - solid colors
+        screen = self.window.get_screen()
         css_provider = Gtk.CssProvider()
-        opacity = self.settings.get('opacity', 0.75)
-        css = f"""
-        window {{
-            background-color: rgba(30, 30, 30, {opacity});
-            border-radius: 10px;
-        }}
-        label {{
-            color: rgba(255, 255, 255, {min(opacity + 0.1, 1.0)});
+        css = """
+        window {
+            background-color: rgb(30, 30, 30);
+        }
+        box {
+            background-color: rgb(30, 30, 30);
+        }
+        scrolledwindow {
+            background-color: rgb(30, 30, 30);
+        }
+        label {
+            color: rgb(255, 255, 255);
             font-size: 12px;
-        }}
+            background-color: transparent;
+        }
+        separator {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
         """
         css_provider.load_from_data(css.encode())
-        style_context = self.window.get_style_context()
-        style_context.add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        Gtk.StyleContext.add_provider_for_screen(
+            screen,
+            css_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
         
         # Position in bottom-right corner
         self.position_window()
@@ -802,55 +810,64 @@ class KeymapHelper:
         except AttributeError:
             pass
         
-        # Try to detect Super using key code (fallback for Linux)
+        # Try to detect keys using key code (fallback for Linux)
         try:
-            # On Linux/X11, Super usually has code 133 (left) or 134 (right)
-            if hasattr(key, 'vk') and (key.vk == 133 or key.vk == 134):
-                if not self.super_pressed:
-                    self.super_pressed = True
-                    GLib.idle_add(self.show_popup)
-        except:
+            if hasattr(key, 'vk'):
+                vk = key.vk
+                # On Linux/X11, Super usually has code 133 (left) or 134 (right)
+                if vk == 133 or vk == 134:
+                    if not self.super_pressed:
+                        self.super_pressed = True
+                        GLib.idle_add(self.show_popup)
+                # On Linux/X11, ALT usually has code 64 (left), 108 (right/AltGr), or 65511 (Alt_L)
+                elif vk == 64 or vk == 108 or vk == 65511:
+                    if not self.alt_pressed:
+                        self.alt_pressed = True
+                        GLib.idle_add(self.show_popup)
+        except Exception:
             pass
     
     def on_release(self, key):
         """Callback when a key is released"""
         try:
+            # Update key states
             if key == keyboard.Key.ctrl_l or key == keyboard.Key.ctrl_r:
                 self.ctrl_pressed = False
-                if not self.super_pressed and not self.alt_pressed:
-                    GLib.idle_add(self.hide_popup)
-                elif self.popup:
-                    GLib.idle_add(self.update_filter)
             elif hasattr(keyboard.Key, 'cmd') and (key == keyboard.Key.cmd or key == keyboard.Key.cmd_r):
                 self.super_pressed = False
-                if not self.ctrl_pressed and not self.alt_pressed:
-                    GLib.idle_add(self.hide_popup)
-                elif self.popup:
-                    GLib.idle_add(self.update_filter)
             elif key == keyboard.Key.shift_l or key == keyboard.Key.shift_r:
                 self.shift_pressed = False
-                if (self.ctrl_pressed or self.super_pressed or self.alt_pressed) and self.popup:
-                    GLib.idle_add(self.update_filter)
             elif key == keyboard.Key.alt_l or key == keyboard.Key.alt_r:
                 self.alt_pressed = False
-                if not self.ctrl_pressed and not self.super_pressed:
-                    GLib.idle_add(self.hide_popup)
-                elif self.popup:
-                    GLib.idle_add(self.update_filter)
         except AttributeError:
             pass
         
-        # Try to detect Super using key code (fallback for Linux)
+        # Try to detect keys using key code (fallback for Linux)
+        # This should run even if the first block detected the key, to ensure state is correct
         try:
-            # On Linux/X11, Super usually has code 133 (left) or 134 (right)
-            if hasattr(key, 'vk') and (key.vk == 133 or key.vk == 134):
-                self.super_pressed = False
-                if not self.ctrl_pressed and not self.alt_pressed:
-                    GLib.idle_add(self.hide_popup)
-                elif self.popup:
-                    GLib.idle_add(self.update_filter)
-        except:
+            if hasattr(key, 'vk'):
+                vk = key.vk
+                # On Linux/X11, Super usually has code 133 (left) or 134 (right)
+                if vk == 133 or vk == 134:
+                    if self.super_pressed:  # Only update if it was pressed
+                        self.super_pressed = False
+                # On Linux/X11, ALT usually has code 64 (left), 108 (right/AltGr), or 65511 (Alt_L)
+                elif vk == 64 or vk == 108 or vk == 65511:
+                    if self.alt_pressed:  # Only update if it was pressed
+                        self.alt_pressed = False
+        except Exception:
             pass
+        
+        # Check if any modifier is still pressed
+        # The popup should stay open if ANY modifier is pressed (including SHIFT)
+        has_any_modifier = self.ctrl_pressed or self.super_pressed or self.alt_pressed or self.shift_pressed
+        
+        if has_any_modifier and self.popup:
+            # Update filter if any modifier is still pressed
+            GLib.idle_add(self.update_filter)
+        elif not has_any_modifier:
+            # Close popup only if NO modifiers are pressed
+            GLib.idle_add(self.hide_popup)
     
     def update_filter(self):
         """Updates the popup filter based on pressed keys"""

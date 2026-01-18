@@ -6,18 +6,18 @@
     "Super+3": "Open Browser",
     "Ctrl+Shift+Alt+Right": "Move app to workspace on the right",
     "Ctrl+Shift+Alt+Left": "Move app to workspace on the left",
-    "Alt+Shift+4": "Print Screen",
+    "Alt+Shift+4": "Screenshot",
+    "Alt+Shift+5": "Record Screen",
     "Alt+Tab": "Switch between windows",
     "Alt+F4": "Close window"
   },
   "popup_settings": {
     "position": "bottom-right",
     "timeout": 10000,
-    "opacity": 0.55,
     "font_size": 12
   },
   "import_sources": {
-    "window_manager": false,
+    "window_manager": true,
     "media_keys": false,
     "shell": false
   },

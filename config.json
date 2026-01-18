@@ -1,0 +1,30 @@
+{
+  "configured_shortcuts": {
+    "Ctrl+c": "Copy",
+    "Super+1": "Open Files",
+    "Super+2": "Open Terminal",
+    "Super+3": "Open Browser",
+    "Ctrl+Shift+Alt+Right": "Move app to workspace on the right",
+    "Ctrl+Shift+Alt+Left": "Move app to workspace on the left",
+    "Alt+Shift+4": "Print Screen",
+    "Alt+Tab": "Switch between windows",
+    "Alt+F4": "Close window"
+  },
+  "popup_settings": {
+    "position": "bottom-right",
+    "timeout": 10000,
+    "opacity": 0.55,
+    "font_size": 12
+  },
+  "import_sources": {
+    "window_manager": false,
+    "media_keys": false,
+    "shell": false
+  },
+  "imported_shortcuts": {
+    
+  },
+  "key_aliases": {
+    "Shift+Delete": "Insert"
+  }
+}

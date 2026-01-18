@@ -246,19 +246,39 @@ class KeymapPopup:
             'shift': pressed_keys.get('shift', False)
         }
         
+        # Create a set of required modifiers (case-insensitive)
+        required_modifiers = set(part.lower() for part in prefix_parts)
+        
         for key, description in self.shortcuts.items():
             key_lower = key.lower()
             
-            # Check if shortcut starts with the prefix of pressed keys
-            if key_lower.startswith(search_prefix_lower):
+            # Extract modifiers from the shortcut key
+            # Format: "Ctrl+Shift+Alt+Right" -> ["ctrl", "shift", "alt"]
+            key_parts = key_lower.split('+')
+            # Remove the last part (the actual key, not a modifier)
+            key_modifiers = key_parts[:-1]
+            key_modifiers_set = set(mod.strip() for mod in key_modifiers)
+            
+            # Check if all required modifiers are present in the shortcut
+            # This makes the search order-independent: we check if the shortcut
+            # contains all the pressed modifiers (and possibly more)
+            # Example: If user presses CTRL+ALT, show CTRL+ALT+Right and CTRL+ALT+SHIFT+Right
+            if required_modifiers.issubset(key_modifiers_set):
+                # All pressed modifiers are present in the shortcut, regardless of order
                 filtered[key] = description
         
-        # Add mapped aliases
+        # Add mapped aliases (order-independent)
         if key_aliases:
             for alias_key, mapped_key in key_aliases.items():
                 alias_lower = alias_key.lower()
-                # Check if alias matches the prefix of pressed keys
-                if alias_lower.startswith(search_prefix_lower):
+                
+                # Extract modifiers from alias (order-independent check)
+                alias_parts = alias_lower.split('+')
+                alias_modifiers = alias_parts[:-1]  # Remove the last part (the actual key)
+                alias_modifiers_set = set(mod.strip() for mod in alias_modifiers)
+                
+                # Check if alias contains all pressed modifiers (order-independent)
+                if required_modifiers.issubset(alias_modifiers_set):
                     # If alias matches, get the mapped shortcut
                     if mapped_key in self.shortcuts:
                         # Create a description showing the alias and mapping

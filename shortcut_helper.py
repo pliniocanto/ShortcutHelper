@@ -29,6 +29,13 @@ except ImportError as e:
     print("   sudo apt-get install python3-gi python3-gi-cairo gir1.2-gtk-3.0")
     sys.exit(1)
 
+try:
+    gi.require_version('AppIndicator3', '0.1')
+    from gi.repository import AppIndicator3
+    HAS_APP_INDICATOR = True
+except (ValueError, ImportError):
+    HAS_APP_INDICATOR = False
+
 
 class KeymapPopup:
     def __init__(self, shortcuts, settings, key_aliases=None, configured_shortcuts=None, imported_shortcuts=None):
@@ -732,6 +739,8 @@ class KeymapHelper:
         
         self.popup = None
         self.listener = None
+        self.tray_icon = None
+        self.indicator = None
         self.ctrl_pressed = False
         self.shift_pressed = False
         self.alt_pressed = False
@@ -947,6 +956,301 @@ class KeymapHelper:
             self.popup.hide()
         return False  # Remove do idle_add
     
+    def open_config_editor(self):
+        """Opens a friendly tabbed dialog to edit the configuration"""
+        dialog = Gtk.Dialog(title="ShortcutHelper Settings", transient_for=None, modal=True)
+        dialog.set_default_size(750, 520)
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+        save_btn = dialog.add_button("Save", Gtk.ResponseType.OK)
+        save_btn.get_style_context().add_class("suggested-action")
+
+        notebook = Gtk.Notebook()
+        notebook.set_margin_start(8)
+        notebook.set_margin_end(8)
+        notebook.set_margin_top(8)
+        notebook.set_margin_bottom(8)
+        dialog.get_content_area().pack_start(notebook, True, True, 0)
+
+        # ── Tab 1: My Shortcuts ──────────────────────────────────────────
+        shortcuts_store = Gtk.ListStore(str, str)
+        for key, desc in sorted(self.config.get('configured_shortcuts', {}).items()):
+            shortcuts_store.append([key, desc])
+
+        shortcuts_view = Gtk.TreeView(model=shortcuts_store)
+        shortcuts_view.set_headers_visible(True)
+
+        for col_idx, title in enumerate(["Shortcut", "Description"]):
+            renderer = Gtk.CellRendererText()
+            renderer.set_property("editable", True)
+            renderer.set_property("placeholder-text", title)
+            col = Gtk.TreeViewColumn(title, renderer, text=col_idx)
+            col.set_expand(True)
+            shortcuts_view.append_column(col)
+            def on_shortcut_edited(r, path, new_text, idx=col_idx):
+                shortcuts_store[path][idx] = new_text
+            renderer.connect("edited", on_shortcut_edited)
+
+        sc_scrolled = Gtk.ScrolledWindow()
+        sc_scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        sc_scrolled.add(shortcuts_view)
+
+        sc_btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        sc_btn_box.set_margin_start(6)
+        sc_btn_box.set_margin_end(6)
+        sc_btn_box.set_margin_top(4)
+        sc_btn_box.set_margin_bottom(6)
+
+        sc_add_btn = Gtk.Button(label="Add")
+        sc_remove_btn = Gtk.Button(label="Remove")
+        sc_btn_box.pack_start(sc_add_btn, False, False, 0)
+        sc_btn_box.pack_start(sc_remove_btn, False, False, 0)
+
+        def on_add_shortcut(_):
+            shortcuts_store.append(["Modifier+Key", "Description"])
+            path = Gtk.TreePath(len(shortcuts_store) - 1)
+            shortcuts_view.scroll_to_cell(path, None, False, 0, 0)
+            shortcuts_view.set_cursor(path, shortcuts_view.get_columns()[0], True)
+
+        def on_remove_shortcut(_):
+            model, it = shortcuts_view.get_selection().get_selected()
+            if it:
+                model.remove(it)
+
+        sc_add_btn.connect("clicked", on_add_shortcut)
+        sc_remove_btn.connect("clicked", on_remove_shortcut)
+
+        tab1 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        tab1.pack_start(sc_scrolled, True, True, 0)
+        tab1.pack_start(sc_btn_box, False, False, 0)
+        notebook.append_page(tab1, Gtk.Label(label="My Shortcuts"))
+
+        # ── Tab 2: Settings ──────────────────────────────────────────────
+        popup_settings = self.config.get('popup_settings', {})
+        import_sources = self.config.get('import_sources', {})
+
+        grid = Gtk.Grid()
+        grid.set_row_spacing(14)
+        grid.set_column_spacing(16)
+        grid.set_margin_start(24)
+        grid.set_margin_end(24)
+        grid.set_margin_top(20)
+        grid.set_margin_bottom(20)
+        grid.set_column_homogeneous(False)
+
+        row = 0
+
+        popup_heading = Gtk.Label()
+        popup_heading.set_markup("<b>Popup</b>")
+        popup_heading.set_halign(Gtk.Align.START)
+        grid.attach(popup_heading, 0, row, 2, 1)
+        row += 1
+
+        grid.attach(Gtk.Label(label="Timeout (ms)", xalign=0), 0, row, 1, 1)
+        timeout_spin = Gtk.SpinButton.new_with_range(500, 30000, 500)
+        timeout_spin.set_value(popup_settings.get('timeout', 3000))
+        timeout_spin.set_hexpand(True)
+        grid.attach(timeout_spin, 1, row, 1, 1)
+        row += 1
+
+        grid.attach(Gtk.Label(label="Font Size", xalign=0), 0, row, 1, 1)
+        font_spin = Gtk.SpinButton.new_with_range(8, 32, 1)
+        font_spin.set_value(popup_settings.get('font_size', 12))
+        grid.attach(font_spin, 1, row, 1, 1)
+        row += 1
+
+        grid.attach(Gtk.Label(label="Position", xalign=0), 0, row, 1, 1)
+        position_combo = Gtk.ComboBoxText()
+        positions = ["bottom-right", "bottom-left", "top-right", "top-left"]
+        for pos in positions:
+            position_combo.append_text(pos)
+        current_pos = popup_settings.get('position', 'bottom-right')
+        position_combo.set_active(positions.index(current_pos) if current_pos in positions else 0)
+        grid.attach(position_combo, 1, row, 1, 1)
+        row += 1
+
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        sep.set_margin_top(4)
+        sep.set_margin_bottom(4)
+        grid.attach(sep, 0, row, 2, 1)
+        row += 1
+
+        import_heading = Gtk.Label()
+        import_heading.set_markup("<b>Import Sources</b>")
+        import_heading.set_halign(Gtk.Align.START)
+        grid.attach(import_heading, 0, row, 2, 1)
+        row += 1
+
+        wm_check = Gtk.CheckButton(label="Window manager shortcuts")
+        wm_check.set_active(import_sources.get('window_manager', True))
+        grid.attach(wm_check, 0, row, 2, 1)
+        row += 1
+
+        media_check = Gtk.CheckButton(label="Media keys")
+        media_check.set_active(import_sources.get('media_keys', False))
+        grid.attach(media_check, 0, row, 2, 1)
+        row += 1
+
+        shell_check = Gtk.CheckButton(label="Shell shortcuts")
+        shell_check.set_active(import_sources.get('shell', False))
+        grid.attach(shell_check, 0, row, 2, 1)
+
+        notebook.append_page(grid, Gtk.Label(label="Settings"))
+
+        # ── Tab 3: Key Aliases ───────────────────────────────────────────
+        aliases_store = Gtk.ListStore(str, str)
+        for k, v in sorted(self.config.get('key_aliases', {}).items()):
+            aliases_store.append([k, v])
+
+        aliases_view = Gtk.TreeView(model=aliases_store)
+        for col_idx, title in enumerate(["From (pressed)", "Acts as"]):
+            renderer = Gtk.CellRendererText()
+            renderer.set_property("editable", True)
+            renderer.set_property("placeholder-text", title)
+            col = Gtk.TreeViewColumn(title, renderer, text=col_idx)
+            col.set_expand(True)
+            aliases_view.append_column(col)
+            def on_alias_edited(r, path, new_text, idx=col_idx):
+                aliases_store[path][idx] = new_text
+            renderer.connect("edited", on_alias_edited)
+
+        al_scrolled = Gtk.ScrolledWindow()
+        al_scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        al_scrolled.add(aliases_view)
+
+        al_btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        al_btn_box.set_margin_start(6)
+        al_btn_box.set_margin_end(6)
+        al_btn_box.set_margin_top(4)
+        al_btn_box.set_margin_bottom(6)
+
+        al_add_btn = Gtk.Button(label="Add")
+        al_remove_btn = Gtk.Button(label="Remove")
+        al_btn_box.pack_start(al_add_btn, False, False, 0)
+        al_btn_box.pack_start(al_remove_btn, False, False, 0)
+
+        def on_add_alias(_):
+            aliases_store.append(["Modifier+Key", "Modifier+Key"])
+            path = Gtk.TreePath(len(aliases_store) - 1)
+            aliases_view.scroll_to_cell(path, None, False, 0, 0)
+            aliases_view.set_cursor(path, aliases_view.get_columns()[0], True)
+
+        def on_remove_alias(_):
+            model, it = aliases_view.get_selection().get_selected()
+            if it:
+                model.remove(it)
+
+        al_add_btn.connect("clicked", on_add_alias)
+        al_remove_btn.connect("clicked", on_remove_alias)
+
+        tab3 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        tab3.pack_start(al_scrolled, True, True, 0)
+        tab3.pack_start(al_btn_box, False, False, 0)
+        notebook.append_page(tab3, Gtk.Label(label="Key Aliases"))
+
+        # ── Tab 4: Imported Shortcuts (read-only) ────────────────────────
+        imported_store = Gtk.ListStore(str, str)
+        for k, v in sorted(self.config.get('imported_shortcuts', {}).items()):
+            imported_store.append([k, v])
+
+        imported_view = Gtk.TreeView(model=imported_store)
+        imported_view.set_headers_visible(True)
+        for col_idx, title in enumerate(["Shortcut", "Description"]):
+            renderer = Gtk.CellRendererText()
+            col = Gtk.TreeViewColumn(title, renderer, text=col_idx)
+            col.set_expand(True)
+            imported_view.append_column(col)
+
+        imp_scrolled = Gtk.ScrolledWindow()
+        imp_scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        imp_scrolled.add(imported_view)
+
+        imp_note = Gtk.Label()
+        imp_note.set_markup("<small><i>These are auto-imported from GNOME and cannot be edited here.</i></small>")
+        imp_note.set_margin_start(8)
+        imp_note.set_margin_bottom(6)
+        imp_note.set_halign(Gtk.Align.START)
+
+        tab4 = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        tab4.pack_start(imp_scrolled, True, True, 0)
+        tab4.pack_start(imp_note, False, False, 0)
+        notebook.append_page(tab4, Gtk.Label(label="Imported Shortcuts"))
+
+        # ── Show & run ───────────────────────────────────────────────────
+        dialog.show_all()
+        response = dialog.run()
+
+        if response == Gtk.ResponseType.OK:
+            new_configured = {}
+            for store_row in shortcuts_store:
+                key, desc = store_row[0].strip(), store_row[1].strip()
+                if key and desc:
+                    new_configured[key] = desc
+            self.config['configured_shortcuts'] = new_configured
+
+            self.config['popup_settings'] = {
+                'timeout': int(timeout_spin.get_value()),
+                'font_size': int(font_spin.get_value()),
+                'position': position_combo.get_active_text(),
+            }
+            self.config['import_sources'] = {
+                'window_manager': wm_check.get_active(),
+                'media_keys': media_check.get_active(),
+                'shell': shell_check.get_active(),
+            }
+
+            new_aliases = {}
+            for store_row in aliases_store:
+                k, v = store_row[0].strip(), store_row[1].strip()
+                if k and v:
+                    new_aliases[k] = v
+            self.config['key_aliases'] = new_aliases
+
+            self.save_config()
+            self.popup = None
+            print("Config saved.")
+
+        dialog.destroy()
+        return False
+
+    def setup_tray(self):
+        """Sets up the system tray icon with a context menu"""
+        menu = Gtk.Menu()
+
+        show_item = Gtk.MenuItem(label="Show Shortcuts")
+        show_item.connect("activate", lambda _: GLib.idle_add(self.show_popup))
+        menu.append(show_item)
+
+        edit_item = Gtk.MenuItem(label="Edit Config")
+        edit_item.connect("activate", lambda _: GLib.idle_add(self.open_config_editor))
+        menu.append(edit_item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
+        quit_item = Gtk.MenuItem(label="Quit")
+        quit_item.connect("activate", lambda _: self.stop())
+        menu.append(quit_item)
+
+        menu.show_all()
+
+        if HAS_APP_INDICATOR:
+            self.indicator = AppIndicator3.Indicator.new(
+                "shortcut-helper",
+                "input-keyboard",
+                AppIndicator3.IndicatorCategory.APPLICATION_STATUS
+            )
+            self.indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+            self.indicator.set_title("ShortcutHelper")
+            self.indicator.set_menu(menu)
+        else:
+            self.tray_icon = Gtk.StatusIcon()
+            self.tray_icon.set_from_icon_name("input-keyboard")
+            self.tray_icon.set_tooltip_text("ShortcutHelper")
+            self.tray_icon.connect("popup-menu", self._on_tray_popup, menu)
+            self.tray_icon.set_visible(True)
+
+    def _on_tray_popup(self, icon, button, time, menu):
+        menu.popup(None, None, Gtk.StatusIcon.position_menu, icon, button, time)
+
     def start(self):
         """Starts key monitoring"""
         # Get all shortcuts (imported + user)
@@ -963,7 +1267,10 @@ class KeymapHelper:
             on_release=self.on_release
         )
         self.listener.start()
-        
+
+        # Set up system tray icon
+        self.setup_tray()
+
         print("ShortcutHelper started!")
         print("Press CTRL, Super (Windows) or ALT to see shortcuts.")
         print("Press Ctrl+C to exit.")

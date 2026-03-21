@@ -1,6 +1,5 @@
 {
   "configured_shortcuts": {
-    "Ctrl+c": "Copy",
     "Super+1": "Open Files",
     "Super+2": "Open Terminal",
     "Super+3": "Open Browser",
@@ -22,7 +21,43 @@
     "shell": false
   },
   "imported_shortcuts": {
-    
+    "Super+Above_tab": "Switch Group",
+    "Super+Shift+PageDown": "Move To Workspace Right",
+    "Super+Shift+Alt+Right": "Move To Workspace Right",
+    "Shift+Alt+Right": "Move To Workspace Right",
+    "Super+Shift+PageUp": "Move To Workspace Left",
+    "Super+Shift+Alt+Left": "Move To Workspace Left",
+    "Shift+Alt+Left": "Move To Workspace Left",
+    "Alt+Esc": "Cycle Panels",
+    "Shift+Alt+Down": "Move To Workspace Down",
+    "Alt+Tab": "Switch Panels",
+    "Super+H": "Minimize",
+    "Super+Space": "Switch Input Source",
+    "Super+Shift+Up": "Move To Monitor Up",
+    "Super+Home": "Switch To Workspace 1",
+    "Super+Shift+Right": "Move To Monitor Right",
+    "Shift+Alt+Tab": "Switch Panels Backward",
+    "Super+Tab": "Switch Applications",
+    "Super+End": "Switch To Workspace Last",
+    "Super+Shift+Home": "Move To Workspace 1",
+    "Alt+Up": "Switch To Workspace Up",
+    "Super+D": "Show Desktop",
+    "Alt+D": "Show Desktop",
+    "Super+PageUp": "Switch To Workspace Left",
+    "Super+Alt+Left": "Switch To Workspace Left",
+    "Alt+Left": "Switch To Workspace Left",
+    "Super+PageDown": "Switch To Workspace Right",
+    "Super+Alt+Right": "Switch To Workspace Right",
+    "Alt+Right": "Switch To Workspace Right",
+    "Alt+Down": "Switch To Workspace Down",
+    "Shift+Alt+Esc": "Cycle Panels Backward",
+    "Super+Shift+Left": "Move To Monitor Left",
+    "Super+Shift+Tab": "Switch Applications Backward",
+    "Super+Shift+Space": "Switch Input Source Backward",
+    "Super+Shift+Down": "Move To Monitor Down",
+    "Shift+Alt+Up": "Move To Workspace Up",
+    "Super+Shift+End": "Move To Workspace Last",
+    "Super+Shift+Above_tab": "Switch Group Backward"
   },
   "key_aliases": {
     "Shift+Delete": "Insert"

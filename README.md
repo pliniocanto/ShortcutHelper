@@ -2,7 +2,8 @@
 
 A program for Ubuntu that shows a popup near a screen corner whenever you press CTRL, Super, or ALT, listing available keyboard shortcuts and their descriptions.
 
-<img width="645" height="327" alt="image" src="https://github.com/user-attachments/assets/9f078761-216f-4a98-b525-c3a3ed885da8" />
+<img width="627" height="322" alt="image" src="https://github.com/user-attachments/assets/d3f64aa5-232a-4750-af02-1eca78c398b1" />
+
 
 
 ## Features

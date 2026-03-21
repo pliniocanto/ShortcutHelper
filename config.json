@@ -11,8 +11,8 @@
   "popup_settings": {
     "timeout": 10000,
     "font_size": 12,
-    "position": "bottom-right",
-    "opacity": 0.8
+    "position": "top-right",
+    "opacity": 0.75
   },
   "import_sources": {
     "window_manager": true,

@@ -195,6 +195,7 @@ def open_config_editor(config, save_config_fn):
 
     # ── Cancel / Save buttons ────────────────────────────────────────────
     result = [False]
+    saved_widget_values = [None]
 
     cancel_btn = Gtk.Button(label="Cancel")
     save_btn   = Gtk.Button(label="Save")
@@ -203,6 +204,17 @@ def open_config_editor(config, save_config_fn):
     def on_cancel(_): win.destroy()
     def on_save(_):
         result[0] = True
+        # Capture widget values before win.destroy() frees them
+        saved_widget_values[0] = {
+            'timeout':   int(timeout_spin.get_value()),
+            'font_size': int(font_spin.get_value()),
+            'position':  position_combo.get_active_text(),
+            'opacity':   round(opacity_scale.get_value(), 2),
+            'wm':        wm_check.get_active(),
+            'media':     media_check.get_active(),
+            'shell':     shell_check.get_active(),
+            'custom':    custom_check.get_active(),
+        }
         win.destroy()
 
     cancel_btn.connect("clicked", on_cancel)
@@ -244,22 +256,23 @@ def open_config_editor(config, save_config_fn):
 
     # ── Persist if saved ─────────────────────────────────────────────────
     if result[0]:
+        v = saved_widget_values[0]
         config['configured_shortcuts'] = {
             row[0].strip(): row[1].strip()
             for row in shortcuts_store
             if row[0].strip() and row[1].strip()
         }
         config['popup_settings'] = {
-            'timeout':   int(timeout_spin.get_value()),
-            'font_size': int(font_spin.get_value()),
-            'position':  position_combo.get_active_text(),
-            'opacity':   round(opacity_scale.get_value(), 2),
+            'timeout':   v['timeout'],
+            'font_size': v['font_size'],
+            'position':  v['position'],
+            'opacity':   v['opacity'],
         }
         config['import_sources'] = {
-            'window_manager':     wm_check.get_active(),
-            'media_keys':         media_check.get_active(),
-            'shell':              shell_check.get_active(),
-            'custom_keybindings': custom_check.get_active(),
+            'window_manager':     v['wm'],
+            'media_keys':         v['media'],
+            'shell':              v['shell'],
+            'custom_keybindings': v['custom'],
         }
         config['key_aliases'] = {
             row[0].strip(): row[1].strip()

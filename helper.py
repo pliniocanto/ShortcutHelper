@@ -6,6 +6,7 @@ UI updates to the GTK main thread via GLib.idle_add.
 """
 
 import json
+import os
 import sys
 
 from pynput import keyboard
@@ -158,6 +159,10 @@ class KeymapHelper:
         edit_item.connect("activate", lambda _: GLib.idle_add(self.open_config_editor))
         menu.append(edit_item)
 
+        restart_item = Gtk.MenuItem(label="Restart")
+        restart_item.connect("activate", lambda _: self.restart())
+        menu.append(restart_item)
+
         menu.append(Gtk.SeparatorMenuItem())
 
         quit_item = Gtk.MenuItem(label="Quit")
@@ -282,6 +287,12 @@ class KeymapHelper:
             Gtk.main()
         except KeyboardInterrupt:
             self.stop()
+
+    def restart(self):
+        if self.listener:
+            self.listener.stop()
+        Gtk.main_quit()
+        os.execv(sys.executable, [sys.executable] + sys.argv)
 
     def stop(self):
         if self.listener:

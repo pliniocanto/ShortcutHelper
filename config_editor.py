@@ -137,7 +137,7 @@ def open_config_editor(config, save_config_fn):
     win.set_modal(True)
     win.set_resizable(False)
     win.set_default_size(750, 540)
-    win.set_position(Gtk.WindowPosition.CENTER)
+    win.set_position(Gtk.WindowPosition.NONE)
 
     # RGBA visual — required for OPERATOR_CLEAR to produce transparency
     screen = win.get_screen()
@@ -231,6 +231,15 @@ def open_config_editor(config, save_config_fn):
     # Block until the window is closed (nested GTK main loop, same as Dialog.run())
     win.connect('destroy', lambda _: Gtk.main_quit())
     win.show_all()
+
+    # Position top-right after show_all() so the window size is known
+    display  = Gdk.Display.get_default()
+    monitor  = display.get_primary_monitor().get_geometry()
+    win_w, win_h = win.get_size()
+    margin_right = 10
+    margin_top   = 40
+    win.move(monitor.x + monitor.width - win_w - margin_right, monitor.y + margin_top)
+
     Gtk.main()
 
     # ── Persist if saved ─────────────────────────────────────────────────

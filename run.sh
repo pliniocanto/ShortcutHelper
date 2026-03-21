@@ -8,6 +8,6 @@ if [ ! -d "venv" ]; then
     exit 1
 fi
 
-# Activate virtual environment and run
+# Activate virtual environment and run (pass through e.g. --help, --import-only)
 source venv/bin/activate
-python shortcut_helper.py
+python shortcut_helper.py "$@"

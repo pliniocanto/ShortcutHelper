@@ -2,6 +2,8 @@
 KeymapPopup — GTK popup window that displays matching keyboard shortcuts.
 """
 
+import math
+
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
@@ -15,12 +17,17 @@ MODIFIER_DISPLAY = {
     'shift': 'SHIFT',
 }
 
+CORNER_RADIUS = 20
+BG_COLOR = (30/255, 30/255, 30/255)
+
 POPUP_CSS = """
-window      { background-color: rgb(30, 30, 30); }
-box         { background-color: rgb(30, 30, 30); }
-scrolledwindow { background-color: rgb(30, 30, 30); }
-label       { color: rgb(255, 255, 255); font-size: 12px; background-color: transparent; }
-separator   { background-color: rgba(255, 255, 255, 0.2); }
+#shortcut-popup,
+#shortcut-popup box,
+#shortcut-popup scrolledwindow,
+#shortcut-popup viewport         { background-color: transparent; }
+#shortcut-popup label            { color: rgb(255, 255, 255); font-size: 12px;
+                                   background-color: transparent; }
+#shortcut-popup separator        { background-color: rgba(255, 255, 255, 0.2); }
 """
 
 
@@ -86,6 +93,15 @@ class KeymapPopup:
         self.window.set_accept_focus(False)
         self.window.set_size_request(600, -1)
 
+        # Enable RGBA visual so the transparent background is composited
+        screen = self.window.get_screen()
+        rgba_visual = screen.get_rgba_visual()
+        if rgba_visual:
+            self.window.set_visual(rgba_visual)
+        self.window.set_name("shortcut-popup")
+        self.window.set_app_paintable(True)
+        self.window.connect('draw', self._on_draw)
+
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=5)
         vbox.set_border_width(15)
         vbox.set_margin_start(10)
@@ -112,6 +128,31 @@ class KeymapPopup:
         self.window.add(vbox)
         self._apply_css()
         self._position_window()
+
+    def _on_draw(self, widget, cr):
+        """Paints the rounded-rectangle background with configurable opacity."""
+        w = widget.get_allocated_width()
+        h = widget.get_allocated_height()
+        r = CORNER_RADIUS
+        opacity = self.settings.get('opacity', 0.8)
+
+        # Clear entire surface to transparent
+        cr.save()
+        cr.set_operator(0)  # cairo.OPERATOR_CLEAR
+        cr.paint()
+        cr.restore()
+
+        # Draw filled rounded rectangle
+        cr.new_sub_path()
+        cr.arc(r,     r,     r, math.pi,           3 * math.pi / 2)
+        cr.arc(w - r, r,     r, 3 * math.pi / 2,  0)
+        cr.arc(w - r, h - r, r, 0,                 math.pi / 2)
+        cr.arc(r,     h - r, r, math.pi / 2,       math.pi)
+        cr.close_path()
+
+        cr.set_source_rgba(*BG_COLOR, opacity)
+        cr.fill()
+        return False
 
     def _apply_css(self):
         css_provider = Gtk.CssProvider()
@@ -144,6 +185,7 @@ class KeymapPopup:
 
         self.window.show_all()
         self.window.present()
+        self.window.queue_draw()
 
         if use_timeout:
             timeout_ms = self.settings.get('timeout', 3000)

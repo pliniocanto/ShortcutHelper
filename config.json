@@ -1,19 +1,20 @@
 {
   "configured_shortcuts": {
-    "Super+1": "Open Files",
-    "Super+2": "Open Terminal",
-    "Super+3": "Open Browser",
-    "Ctrl+Shift+Alt+Right": "Move app to workspace on the right",
-    "Ctrl+Shift+Alt+Left": "Move app to workspace on the left",
+    "Alt+F4": "Close window",
     "Alt+Shift+4": "Screenshot",
     "Alt+Shift+5": "Record Screen",
     "Alt+Tab": "Switch between windows",
-    "Alt+F4": "Close window"
+    "Ctrl+Shift+Alt+Left": "Move app to workspace on the left",
+    "Ctrl+Shift+Alt+Right": "Move app to workspace on the right",
+    "Super+1": "Open Files",
+    "Super+2": "Open Terminal",
+    "Super+3": "Open Browser"
   },
   "popup_settings": {
-    "position": "bottom-right",
     "timeout": 10000,
-    "font_size": 12
+    "font_size": 12,
+    "position": "bottom-right",
+    "opacity": 0.23
   },
   "import_sources": {
     "window_manager": true,

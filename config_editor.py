@@ -34,7 +34,7 @@ def open_config_editor(config, save_config_fn):
     dialog.get_content_area().pack_start(notebook, True, True, 0)
 
     shortcuts_store  = _build_shortcuts_tab(notebook, config)
-    timeout_spin, font_spin, position_combo, wm_check, media_check, shell_check = \
+    timeout_spin, font_spin, position_combo, opacity_scale, wm_check, media_check, shell_check = \
         _build_settings_tab(notebook, config)
     aliases_store    = _build_aliases_tab(notebook, config)
     _build_imported_tab(notebook, config)
@@ -52,6 +52,7 @@ def open_config_editor(config, save_config_fn):
             'timeout':   int(timeout_spin.get_value()),
             'font_size': int(font_spin.get_value()),
             'position':  position_combo.get_active_text(),
+            'opacity':   round(opacity_scale.get_value(), 2),
         }
         config['import_sources'] = {
             'window_manager': wm_check.get_active(),
@@ -141,6 +142,20 @@ def _build_settings_tab(notebook, config):
     grid.attach(position_combo, 1, row, 1, 1)
     row += 1
 
+    grid.attach(Gtk.Label(label="Opacity", xalign=0), 0, row, 1, 1)
+    opacity_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    opacity_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0.1, 1.0, 0.05)
+    opacity_scale.set_value(popup_settings.get('opacity', 0.8))
+    opacity_scale.set_hexpand(True)
+    opacity_scale.set_draw_value(False)
+    opacity_label = Gtk.Label(label=f"{popup_settings.get('opacity', 0.8):.0%}")
+    opacity_label.set_width_chars(5)
+    opacity_scale.connect('value-changed', lambda s: opacity_label.set_text(f"{s.get_value():.0%}"))
+    opacity_box.pack_start(opacity_scale, True, True, 0)
+    opacity_box.pack_start(opacity_label, False, False, 0)
+    grid.attach(opacity_box, 1, row, 1, 1)
+    row += 1
+
     sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
     sep.set_margin_top(4)
     sep.set_margin_bottom(4)
@@ -164,7 +179,7 @@ def _build_settings_tab(notebook, config):
     grid.attach(shell_check, 0, row, 2, 1)
 
     notebook.append_page(grid, Gtk.Label(label="Settings"))
-    return timeout_spin, font_spin, position_combo, wm_check, media_check, shell_check
+    return timeout_spin, font_spin, position_combo, opacity_scale, wm_check, media_check, shell_check
 
 
 def _build_aliases_tab(notebook, config):

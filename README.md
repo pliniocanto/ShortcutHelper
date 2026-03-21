@@ -1,6 +1,6 @@
 # ShortcutHelper
 
-A program for Ubuntu that shows a popup in the bottom-right corner of the screen whenever you press CTRL, Super, or ALT, listing available keyboard shortcuts and their descriptions.
+A program for Ubuntu that shows a popup near a screen corner whenever you press CTRL, Super, or ALT, listing available keyboard shortcuts and their descriptions.
 
 <img width="645" height="327" alt="image" src="https://github.com/user-attachments/assets/9f078761-216f-4a98-b525-c3a3ed885da8" />
 
@@ -8,11 +8,13 @@ A program for Ubuntu that shows a popup in the bottom-right corner of the screen
 ## Features
 
 - Detects when CTRL, Super, or ALT keys are pressed
-- Shows an elegant popup in the bottom-right corner
+- Shows an elegant popup in the bottom-right corner (or another corner—see settings)
 - Lists all available shortcuts with the pressed modifiers
 - Displays descriptions of what each shortcut does
 - **Automatically imports shortcuts from GNOME system**
-- Customizable through configuration file
+- Customizable through the configuration file or the built-in **settings dialog**
+- **Configurable popup transparency** via `popup_settings.opacity` (semi-transparent background so you can see through the overlay)
+- **System tray icon** (keyboard) stays resident while the app runs: open the shortcut list on demand, edit settings, or quit
 - Dynamic filtering based on pressed modifier keys (CTRL, Super, ALT, SHIFT)
 
 ## Requirements
@@ -48,7 +50,15 @@ source venv/bin/activate
 python shortcut_helper.py
 ```
 
-The program will run in the background and show the popup whenever you press CTRL, Super, or ALT.
+The program runs in the background and shows the popup whenever you press CTRL, Super, or ALT.
+
+A **system tray** icon (keyboard) appears while ShortcutHelper is running. Use it to:
+
+- **Show Shortcuts** — open the popup without holding a modifier
+- **Edit Config** — open the graphical **ShortcutHelper Settings** window (custom shortcuts, popup options, key aliases, imported shortcuts, and which GNOME sources to import)
+- **Quit** — exit the app
+
+On GNOME, the app uses **AppIndicator** when available; otherwise it falls back to GTK’s legacy status icon.
 
 ### Running as a System Service (Auto-start on Login)
 
@@ -89,7 +99,16 @@ systemctl --user start shortcut-helper.service
 
 ## Configuration
 
-Edit the `config.json` file to customize the shortcuts and descriptions displayed.
+Edit `config.json` directly, or use **Edit Config** from the tray to change most options in a tabbed dialog. The **Popup** settings tab includes **opacity** (about 10%–100%): lower values make the shortcut overlay more transparent.
+
+Relevant keys in `config.json` under `popup_settings`:
+
+| Key        | Meaning |
+| ---------- | ------- |
+| `timeout`  | How long the popup stays visible (milliseconds) |
+| `font_size`| Text size |
+| `position` | `bottom-right`, `bottom-left`, `top-right`, or `top-left` |
+| `opacity`  | Opacity of the popup’s rounded background (`0.1`–`1.0`) |
 
 ### Import System Shortcuts
 
@@ -107,7 +126,11 @@ python shortcut_helper.py --no-import-system
 
 ## Project Structure
 
-- `shortcut_helper.py` - Main program
+- `shortcut_helper.py` - Entry point
+- `helper.py` - Keyboard listener, tray, and lifecycle
+- `popup.py` - Shortcut popup window (including opacity)
+- `config_editor.py` - GTK settings dialog
+- `importer.py` - GNOME shortcut import
 - `config.json` - Shortcut configuration
 - `requirements.txt` - Python dependencies
 - `setup.sh` - Automatic installation script

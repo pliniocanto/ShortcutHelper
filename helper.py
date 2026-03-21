@@ -70,16 +70,21 @@ class KeymapHelper:
     def _import_system_shortcuts(self):
         try:
             import_sources = self.config.get('import_sources', {})
-            system = SystemKeymapImporter.get_system_shortcuts(import_sources)
+            hidden = set(self.config.get('hidden_imported_shortcuts', []))
+            system, sources = SystemKeymapImporter.get_system_shortcuts(import_sources)
+            # Remove shortcuts the user has explicitly hidden
+            filtered = {k: v for k, v in system.items() if k not in hidden}
+            filtered_sources = {k: v for k, v in sources.items() if k not in hidden}
             old = self.config.get('imported_shortcuts', {})
-            self.config['imported_shortcuts'] = system
-            new_count = len([k for k in system if k not in old])
-            if new_count > 0 or len(system) != len(old):
+            self.config['imported_shortcuts'] = filtered
+            self.config['imported_shortcuts_sources'] = filtered_sources
+            new_count = len([k for k in filtered if k not in old])
+            if new_count > 0 or len(filtered) != len(old):
                 self.save_config()
                 if new_count > 0:
                     print(f"📥 Imported {new_count} new shortcuts from GNOME system")
                 else:
-                    print(f"📥 Updated {len(system)} shortcuts from GNOME system")
+                    print(f"📥 Updated {len(filtered)} shortcuts from GNOME system")
         except Exception as e:
             print(f"⚠️  Warning: Could not import system shortcuts: {e}")
 
@@ -100,6 +105,7 @@ class KeymapHelper:
             configured_shortcuts = self.config.get('configured_shortcuts',
                                                    self.config.get('shortcuts', {})),
             imported_shortcuts   = self.config.get('imported_shortcuts', {}),
+            imported_sources     = self.config.get('imported_shortcuts_sources', {}),
         )
 
     def _pressed_keys(self):

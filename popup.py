@@ -9,6 +9,13 @@ gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
 
 
+SOURCE_LABELS = {
+    'window_manager':    'WM',
+    'media_keys':        'Media',
+    'shell':             'Shell',
+    'custom_keybindings': 'Custom',
+}
+
 MODIFIER_DISPLAY = {
     'ctrl': 'CTRL',
     'control': 'CTRL',
@@ -46,7 +53,7 @@ def _format_shortcut_markup(key):
     return f"<b>{final_key.upper()}</b>"
 
 
-def _make_shortcut_row(key, description):
+def _make_shortcut_row(key, description, source=None):
     """Creates a single row widget for a shortcut entry."""
     hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=25)
 
@@ -61,17 +68,26 @@ def _make_shortcut_row(key, description):
     desc_label.set_ellipsize(3)
     hbox.pack_start(desc_label, True, True, 0)
 
+    if source:
+        tag = SOURCE_LABELS.get(source, source)
+        src_label = Gtk.Label()
+        src_label.set_markup(f"<small><span alpha='60%'>[{tag}]</span></small>")
+        src_label.set_xalign(1)
+        hbox.pack_start(src_label, False, False, 0)
+
     return hbox
 
 
 class KeymapPopup:
     def __init__(self, shortcuts, settings, key_aliases=None,
-                 configured_shortcuts=None, imported_shortcuts=None):
+                 configured_shortcuts=None, imported_shortcuts=None,
+                 imported_sources=None):
         self.shortcuts = shortcuts
         self.settings = settings
         self.key_aliases = key_aliases or {}
         self.configured_shortcuts = configured_shortcuts or {}
         self.imported_shortcuts = imported_shortcuts or {}
+        self.imported_sources = imported_sources or {}
 
         self.window = None
         self.timeout_id = None
@@ -276,6 +292,7 @@ class KeymapPopup:
             self.shortcuts_box.pack_start(sep, False, False, 0)
 
         for key, desc in imported_items:
-            self.shortcuts_box.pack_start(_make_shortcut_row(key, desc), False, False, 0)
+            source = self.imported_sources.get(key)
+            self.shortcuts_box.pack_start(_make_shortcut_row(key, desc, source), False, False, 0)
 
         self.shortcuts_box.show_all()

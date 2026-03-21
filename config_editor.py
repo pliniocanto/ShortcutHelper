@@ -34,10 +34,10 @@ def open_config_editor(config, save_config_fn):
     dialog.get_content_area().pack_start(notebook, True, True, 0)
 
     shortcuts_store  = _build_shortcuts_tab(notebook, config)
-    timeout_spin, font_spin, position_combo, opacity_scale, wm_check, media_check, shell_check = \
+    timeout_spin, font_spin, position_combo, opacity_scale, wm_check, media_check, shell_check, custom_check = \
         _build_settings_tab(notebook, config)
     aliases_store    = _build_aliases_tab(notebook, config)
-    _build_imported_tab(notebook, config)
+    imported_store   = _build_imported_tab(notebook, config)
 
     dialog.show_all()
     response = dialog.run()
@@ -55,15 +55,35 @@ def open_config_editor(config, save_config_fn):
             'opacity':   round(opacity_scale.get_value(), 2),
         }
         config['import_sources'] = {
-            'window_manager': wm_check.get_active(),
-            'media_keys':     media_check.get_active(),
-            'shell':          shell_check.get_active(),
+            'window_manager':    wm_check.get_active(),
+            'media_keys':        media_check.get_active(),
+            'shell':             shell_check.get_active(),
+            'custom_keybindings': custom_check.get_active(),
         }
         config['key_aliases'] = {
             row[0].strip(): row[1].strip()
             for row in aliases_store
             if row[0].strip() and row[1].strip()
         }
+
+        # Track shortcuts removed from the imported tab → hide permanently
+        remaining_imported = {row[0].strip() for row in imported_store if row[0].strip()}
+        all_imported = set(config.get('imported_shortcuts', {}).keys())
+        newly_hidden = all_imported - remaining_imported
+        hidden = set(config.get('hidden_imported_shortcuts', []))
+        hidden.update(newly_hidden)
+        config['hidden_imported_shortcuts'] = sorted(hidden)
+        # Persist the visible imported shortcuts immediately
+        old_sources = config.get('imported_shortcuts_sources', {})
+        config['imported_shortcuts'] = {
+            row[0].strip(): row[1].strip()
+            for row in imported_store
+            if row[0].strip()
+        }
+        config['imported_shortcuts_sources'] = {
+            k: old_sources[k] for k in config['imported_shortcuts'] if k in old_sources
+        }
+
         save_config_fn()
         print("Config saved.")
 
@@ -177,9 +197,14 @@ def _build_settings_tab(notebook, config):
     shell_check = Gtk.CheckButton(label="Shell shortcuts")
     shell_check.set_active(import_sources.get('shell', False))
     grid.attach(shell_check, 0, row, 2, 1)
+    row += 1
+
+    custom_check = Gtk.CheckButton(label="Custom keybindings (e.g. Ctrl+Alt+T)")
+    custom_check.set_active(import_sources.get('custom_keybindings', True))
+    grid.attach(custom_check, 0, row, 2, 1)
 
     notebook.append_page(grid, Gtk.Label(label="Settings"))
-    return timeout_spin, font_spin, position_combo, opacity_scale, wm_check, media_check, shell_check
+    return timeout_spin, font_spin, position_combo, opacity_scale, wm_check, media_check, shell_check, custom_check
 
 
 def _build_aliases_tab(notebook, config):
@@ -213,33 +238,62 @@ def _build_aliases_tab(notebook, config):
     return store
 
 
+SOURCE_DISPLAY = {
+    'window_manager':    'WM',
+    'media_keys':        'Media',
+    'shell':             'Shell',
+    'custom_keybindings': 'Custom',
+}
+
+
 def _build_imported_tab(notebook, config):
-    store = Gtk.ListStore(str, str)
+    store = Gtk.ListStore(str, str, str)  # shortcut, description, source
+    sources = config.get('imported_shortcuts_sources', {})
     for k, v in sorted(config.get('imported_shortcuts', {}).items()):
-        store.append([k, v])
+        src = SOURCE_DISPLAY.get(sources.get(k, ''), sources.get(k, ''))
+        store.append([k, v, src])
 
     view = Gtk.TreeView(model=store)
     view.set_headers_visible(True)
-    for col_idx, title in enumerate(["Shortcut", "Description"]):
+    for col_idx, title in enumerate(["Shortcut", "Description", "Source"]):
         col = Gtk.TreeViewColumn(title, Gtk.CellRendererText(), text=col_idx)
-        col.set_expand(True)
+        col.set_expand(col_idx < 2)  # only first two columns expand
         view.append_column(col)
 
     scrolled = Gtk.ScrolledWindow()
     scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
     scrolled.add(view)
 
+    hide_btn = Gtk.Button(label="Hide selected")
+    hide_btn.set_margin_start(6)
+    hide_btn.set_margin_end(6)
+    hide_btn.set_margin_top(4)
+    hide_btn.set_margin_bottom(4)
+
+    def on_hide(_):
+        model, it = view.get_selection().get_selected()
+        if it:
+            model.remove(it)
+
+    hide_btn.connect("clicked", on_hide)
+
     note = Gtk.Label()
-    note.set_markup("<small><i>Auto-imported from GNOME — not editable here.</i></small>")
+    note.set_markup("<small><i>Auto-imported from GNOME. "
+                    "Hidden shortcuts are permanently excluded from future imports.</i></small>")
     note.set_margin_start(8)
     note.set_margin_bottom(6)
     note.set_halign(Gtk.Align.START)
 
+    btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+    btn_box.pack_start(hide_btn, False, False, 0)
+
     box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
     box.pack_start(scrolled, True, True, 0)
+    box.pack_start(btn_box, False, False, 0)
     box.pack_start(note, False, False, 0)
 
     notebook.append_page(box, Gtk.Label(label="Imported Shortcuts"))
+    return store
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
